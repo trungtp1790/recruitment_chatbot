@@ -1,66 +1,44 @@
-# Recruitment Chatbot (Vietnamese)
+# Recruitment Chatbot
 
-Chatbot hỗ trợ tuyển dụng bằng tiếng Việt.
+Chatbot hỗ trợ tuyển dụng bằng tiếng Việt, xây dựng theo hướng MVP để demo end-to-end cho portfolio.
 
-MVP hiện tại tập trung vào luồng thực thi được cho Fresher AI Engineer:
-`Next.js UI -> FastAPI -> Intent + Session Memory (Redis) -> Job Search (PostgreSQL) -> Gemini reply`.
+## Overview
 
-Repo này ưu tiên tính trung thực khi demo xin việc: phần nào đã chạy được thì mô tả rõ, phần nào chưa có thì ghi thành roadmap.
+Ứng dụng cho phép người dùng trò chuyện để tìm việc theo ngành, địa điểm và mức lương.  
+Hệ thống dùng intent rule-based + session memory (Redis) để giữ ngữ cảnh hội thoại, sau đó truy vấn job từ PostgreSQL và tạo phản hồi bằng Gemini (hoặc mock fallback).
 
-## Demo nhanh
-
-- Frontend: [http://localhost:3000](http://localhost:3000)
-- Swagger API: [http://localhost:8000/docs](http://localhost:8000/docs)
-- Health check: `GET /health`
-
-## Bài toán giải quyết
-
-- User chat tự nhiên để tìm việc theo ngành, địa điểm, mức lương.
-- Bot nhận diện intent cơ bản và lưu ngữ cảnh theo `session_id` (long-term memory theo phiên).
-- LLM chỉ dùng để diễn đạt câu trả lời; logic lọc job vẫn chạy bằng SQL để dễ kiểm soát.
-
-## Hành vi hội thoại theo mô tả dự án
-
-### 1) Chat mở đầu
-
-- Hiện tại UI chưa tự đẩy greeting message từ bot.
-- Người dùng có thể bắt đầu bằng các câu như:
-  - `"Tôi có thể giúp được gì cho bạn?"`
-  - `"Chúng ta nên bắt đầu từ đâu?"`
-  - `"Tôi muốn tìm việc"`
-
-### 2) Chat bình thường (ngoài tuyển dụng)
-
-MVP đang dùng **Option A**:
-- Nếu user hỏi ngoài phạm vi (thời tiết, bóng đá, âm nhạc...), bot rào lại:
-  - `"Mình là chatbot tuyển dụng, nên chỉ hỗ trợ tìm việc..."`
-
-**Option B** (trả lời bình thường ngoài tuyển dụng) chưa bật trong code hiện tại, để ở roadmap.
-
-### 3) Chat tuyển dụng
-
-- User hỏi job DS/AI -> bot tìm job liên quan DS/AI.
-- User nói tiếp `"ở HCM"` -> bot vẫn hiểu đang theo ngữ cảnh job DS/AI trước đó (memory theo phiên Redis).
-- User hỏi `"Bạn là ai?"` -> bot trả lời dạng giới thiệu chatbot tuyển dụng.
-
-## Tech stack
-
-- **Backend:** FastAPI, asyncpg, Redis, httpx, BeautifulSoup, Gemini API
-- **Frontend:** Next.js App Router
-- **Data:** PostgreSQL (`jobs` table, có cột `embedding` để mở rộng vector search)
-- **Infra local:** Docker Compose
-
-## Kiến trúc
+Luồng chính:
 
 ```text
-Browser (Next.js)
-   -> POST /api/chat (FastAPI)
-      -> intent + slot memory (Redis)
-      -> query jobs (PostgreSQL)
-      -> generate response (Gemini / mock fallback)
+Next.js UI -> FastAPI -> Intent + Memory (Redis) -> Job Search (PostgreSQL) -> Gemini Response
 ```
 
-## Project structure
+## Features
+
+- Chat tìm việc theo ngôn ngữ tự nhiên tiếng Việt
+- Nhận diện intent cơ bản: `find_job`, `off_topic`, `bot_identity`
+- Lưu ngữ cảnh theo phiên chat (`session_id`) gồm ngành, địa điểm, lương tối thiểu
+- Hỗ trợ câu hỏi nối tiếp kiểu: "Tìm việc DS/AI" -> "ở HCM" -> "lương từ 20 triệu"
+- Tích hợp Gemini, có fallback sang mock reply khi thiếu API key
+- Đồng bộ dữ liệu job từ TopCV vào PostgreSQL
+
+## Conversation Behavior (Current MVP)
+
+- **Tìm việc:** bot tìm job theo intent + context trong memory
+- **Ngoài phạm vi tuyển dụng:** bot rào lại theo domain tuyển dụng
+- **Câu hỏi "Bạn là ai?":** bot giới thiệu là chatbot hỗ trợ tuyển dụng
+
+Lưu ý: mode "ngoài phạm vi nhưng vẫn trả lời bình thường" chưa bật trong code hiện tại.
+
+## Tech Stack
+
+- **Frontend:** Next.js (App Router)
+- **Backend:** FastAPI, asyncpg, Redis, httpx, BeautifulSoup
+- **LLM:** Google Gemini API (`google-generativeai`)
+- **Database:** PostgreSQL + pgvector image
+- **Infra local:** Docker Compose
+
+## Project Structure
 
 ```text
 recruitment_chatbot/
@@ -69,10 +47,10 @@ recruitment_chatbot/
 │   │   ├── main.py
 │   │   ├── intent.py
 │   │   ├── memory_service.py
+│   │   ├── location_slot.py
 │   │   ├── job_service.py
 │   │   ├── llm_service.py
-│   │   ├── job_ingest.py
-│   │   └── ...
+│   │   └── job_ingest.py
 │   ├── tests/
 │   └── requirements.txt
 ├── frontend/app/
@@ -82,25 +60,34 @@ recruitment_chatbot/
 └── README.md
 ```
 
-## Run with Docker (recommended)
+## Getting Started
+
+### 1) Run with Docker (recommended)
 
 ```bash
 copy .env.example .env
 docker compose up --build
 ```
 
-Trong `.env`:
-- điền `GEMINI_API_KEY` để dùng model thật, hoặc
-- đặt `USE_MOCK_LLM=true` để demo offline.
+Services:
+- Frontend: [http://localhost:3000](http://localhost:3000)
+- Backend docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Health check: `GET /health`
 
-Nếu dữ liệu Postgres cũ làm sai seed:
+Trong `.env`:
+- điền `GEMINI_API_KEY` để dùng Gemini thật, hoặc
+- đặt `USE_MOCK_LLM=true` để chạy offline.
+
+Nếu cần reset seed data:
 
 ```bash
 docker compose down -v
 docker compose up --build
 ```
 
-## Local development (không dùng Docker)
+### 2) Run locally (without Docker)
+
+Backend:
 
 ```bash
 cd backend
@@ -110,7 +97,7 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Mở terminal khác:
+Frontend (terminal khác):
 
 ```bash
 cd frontend
@@ -118,81 +105,70 @@ npm install
 npm run dev
 ```
 
-## Đồng bộ job từ web
+## Data Sync (TopCV)
 
-Nguồn đang hỗ trợ ổn định trong repo: **TopCV**.
+Chạy ingest script:
 
 ```bash
 cd backend
 python -m app.job_ingest
 ```
 
-Hoặc dùng API admin:
+Hoặc gọi API admin:
 
 ```http
 POST /api/admin/jobs/sync
 X-Sync-Secret: <SYNC_JOBS_SECRET>
 ```
 
-Ghi chú thực tế:
-- ITviec/LinkedIn chưa bật ingest tự động trong bản này (Cloudflare/ToS/API constraints).
-- TopCV có thể trả `HTTP 520` tùy IP/rate-limit; đã có retry và browser-like headers nhưng vẫn có thể fail.
+Ghi chú:
+- ITviec/LinkedIn chưa bật ingest tự động trong phiên bản này.
+- TopCV có thể gặp `HTTP 520` tùy IP/rate-limit.
 
-## API chính (MVP)
+## API Endpoints
 
-| Method | Endpoint | Purpose |
+| Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/health` | Kiểm tra trạng thái API, Postgres, Redis |
-| `POST` | `/api/chat` | Chat và trả jobs gợi ý |
-| `GET` | `/api/jobs/search` | Search trực tiếp theo query |
-| `POST` | `/api/admin/jobs/sync` | Ingest jobs vào DB |
+| `POST` | `/api/chat` | Chat và trả phản hồi + danh sách job gợi ý |
+| `GET` | `/api/jobs/search` | Tìm job trực tiếp theo query |
+| `POST` | `/api/admin/jobs/sync` | Đồng bộ job từ web vào DB |
 
-## Quick test flow (để demo recruiter)
+## Demo Script
 
-1. Gửi: `Tôi muốn tìm việc DS/AI`
-2. Gửi tiếp: `Ở HCM`
-3. Gửi tiếp: `Lương từ 20 triệu`
-4. Gửi: `Bạn là ai?`
-5. Gửi câu ngoài phạm vi: `Thời tiết hôm nay thế nào?`
-6. Kiểm tra `GET /health` trong Swagger
+1. `Tôi muốn tìm việc DS/AI`
+2. `Ở HCM`
+3. `Lương từ 20 triệu`
+4. `Bạn là ai?`
+5. `Thời tiết hôm nay thế nào?`
 
 Kỳ vọng:
-- intent chuyển đúng giữa `find_job`, `bot_identity`, `off_topic`
-- memory giữ được context ngành + địa điểm + lương theo phiên chat
-- câu ngoài phạm vi không làm bẩn slot tìm việc
-- trả lời dùng Gemini khi có key, fallback mock khi không có key
+- Intent chuyển đúng giữa `find_job`, `bot_identity`, `off_topic`
+- Memory giữ được ngữ cảnh ngành/địa điểm/lương trong cùng session
+- Câu off-topic không làm bẩn memory tìm việc
 
-## Hạn chế hiện tại
+## Limitations
 
-- Intent hiện là rule-based, chưa có confidence scoring.
-- UI chưa có greeting bot tự động khi mở màn hình chat.
-- Chưa có mode cấu hình để chọn giữa:
-  - Option A: rào lại domain tuyển dụng (đang có)
-  - Option B: vẫn trả lời bình thường ngoài domain (chưa có)
-- Chưa có auth, rate limit, tracing, và dashboard monitoring.
-- Chưa có CI/CD pipeline hoàn chỉnh.
-- Search hiện là SQL + keyword + slot memory; chưa bật RAG vector retrieval thực sự.
-- Chưa dùng LangGraph/graph orchestration để xử lý timeout hoặc branching flow.
+- Intent đang là rule-based, chưa có confidence scoring
+- Chưa có greeting message tự động khi mở chat
+- Chưa có mode cấu hình cho off-topic (trả lời tự do ngoài tuyển dụng)
+- Chưa có auth/rate-limit/observability đầy đủ
+- Chưa có CI/CD pipeline hoàn chỉnh
+- Chưa bật RAG vector retrieval thực tế (mới ở mức SQL + keyword + memory)
+- Chưa dùng graph orchestration cho timeout/fallback
 
-## Roadmap ngắn hạn
+## Roadmap
 
-- [ ] Thêm greeting mặc định khi mở chat: `"Tôi có thể giúp được gì cho bạn?"`
-- [ ] Thêm config `OUT_OF_SCOPE_MODE` để chọn Option A/Option B cho câu hỏi ngoài tuyển dụng
-- [ ] Bổ sung eval dataset cho tiếng Việt (intent + retrieval quality)
-- [ ] Thêm observability (structured logs + request id + latency metrics)
-- [ ] Bật RAG vector search bằng pgvector (đã có cột `embedding` trong schema)
-- [ ] Nếu response retrieval chậm: thêm timeout + fallback flow (có thể triển khai bằng graph orchestration)
-- [ ] Hoàn thiện CI (lint, test, build) trước khi public production demo
+- [ ] Thêm greeting mặc định khi mở chat
+- [ ] Thêm config cho chiến lược xử lý off-topic
+- [ ] Bổ sung eval dataset cho tiếng Việt (intent + retrieval)
+- [ ] Bật vector search với pgvector cho query mơ hồ
+- [ ] Bổ sung timeout/fallback flow cho nhánh retrieval chậm
+- [ ] Hoàn thiện CI (lint, test, build)
 
-## Những gì mình học được từ project này
+## Environment Variables
 
-- Không nên để LLM quyết định toàn bộ business logic; nên tách phần filter/search thành deterministic layer.
-- Session memory theo phiên giúp bot hiểu câu follow-up kiểu `"ở HCM"` hoặc `"lương từ 20 triệu"`.
-- Data ingestion thực tế bị ảnh hưởng lớn bởi nguồn dữ liệu và anti-bot, không chỉ là code.
-
-## Environment variables
-
-Xem `.env.example` để biết các biến chính:
+Xem `.env.example` để cấu hình:
 `DATABASE_URL`, `REDIS_URL`, `GEMINI_API_KEY`, `USE_MOCK_LLM`, `ALLOWED_ORIGINS`, `SYNC_JOBS_SECRET`, `CRAWL_TOPCV_*`, `TOPCV_JOBS_LIST_URL`.
 
 ## License
