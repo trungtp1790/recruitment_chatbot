@@ -16,19 +16,23 @@ Next.js UI -> FastAPI -> Intent + Memory (Redis) -> Job Search (PostgreSQL) -> G
 ## Features
 
 - Chat tìm việc theo ngôn ngữ tự nhiên tiếng Việt
+- Greeting tự động khi mở chat: "Tôi có thể giúp được gì cho bạn? Chúng ta nên bắt đầu từ đâu?"
 - Nhận diện intent cơ bản: `find_job`, `off_topic`, `bot_identity`
 - Lưu ngữ cảnh theo phiên chat (`session_id`) gồm ngành, địa điểm, lương tối thiểu
 - Hỗ trợ câu hỏi nối tiếp kiểu: "Tìm việc DS/AI" -> "ở HCM" -> "lương từ 20 triệu"
 - Tích hợp Gemini, có fallback sang mock reply khi thiếu API key
+- Cấu hình xử lý off-topic qua `OUT_OF_SCOPE_MODE`:
+  - `guardrail` (Option A): rào lại domain tuyển dụng
+  - `open` (Option B): vẫn trả lời bình thường câu ngoài tuyển dụng
 - Đồng bộ dữ liệu job từ TopCV vào PostgreSQL
 
 ## Conversation Behavior (Current MVP)
 
 - **Tìm việc:** bot tìm job theo intent + context trong memory
-- **Ngoài phạm vi tuyển dụng:** bot rào lại theo domain tuyển dụng
+- **Ngoài phạm vi tuyển dụng:** chọn bằng `OUT_OF_SCOPE_MODE`
+  - `guardrail`: rào lại theo domain tuyển dụng
+  - `open`: vẫn trả lời bình thường câu ngoài tuyển dụng
 - **Câu hỏi "Bạn là ai?":** bot giới thiệu là chatbot hỗ trợ tuyển dụng
-
-Lưu ý: mode "ngoài phạm vi nhưng vẫn trả lời bình thường" chưa bật trong code hiện tại.
 
 ## Tech Stack
 
@@ -150,8 +154,6 @@ Kỳ vọng:
 ## Limitations
 
 - Intent đang là rule-based, chưa có confidence scoring
-- Chưa có greeting message tự động khi mở chat
-- Chưa có mode cấu hình cho off-topic (trả lời tự do ngoài tuyển dụng)
 - Chưa có auth/rate-limit/observability đầy đủ
 - Chưa có CI/CD pipeline hoàn chỉnh
 - Chưa bật RAG vector retrieval thực tế (mới ở mức SQL + keyword + memory)
@@ -160,7 +162,6 @@ Kỳ vọng:
 ## Roadmap
 
 - [ ] Thêm greeting mặc định khi mở chat
-- [ ] Thêm config cho chiến lược xử lý off-topic
 - [ ] Bổ sung eval dataset cho tiếng Việt (intent + retrieval)
 - [ ] Bật vector search với pgvector cho query mơ hồ
 - [ ] Bổ sung timeout/fallback flow cho nhánh retrieval chậm
@@ -169,7 +170,7 @@ Kỳ vọng:
 ## Environment Variables
 
 Xem `.env.example` để cấu hình:
-`DATABASE_URL`, `REDIS_URL`, `GEMINI_API_KEY`, `USE_MOCK_LLM`, `ALLOWED_ORIGINS`, `SYNC_JOBS_SECRET`, `CRAWL_TOPCV_*`, `TOPCV_JOBS_LIST_URL`.
+`DATABASE_URL`, `REDIS_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL`, `USE_MOCK_LLM`, `OUT_OF_SCOPE_MODE`, `ALLOWED_ORIGINS`, `SYNC_JOBS_SECRET`, `CRAWL_TOPCV_*`, `TOPCV_JOBS_LIST_URL`.
 
 ## License
 
